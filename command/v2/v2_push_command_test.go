@@ -18,6 +18,7 @@ import (
 	"code.cloudfoundry.org/cli/command/translatableerror"
 	. "code.cloudfoundry.org/cli/command/v2"
 	"code.cloudfoundry.org/cli/command/v2/v2fakes"
+	"code.cloudfoundry.org/cli/types"
 	"code.cloudfoundry.org/cli/util/configv3"
 	"code.cloudfoundry.org/cli/util/ui"
 	. "github.com/onsi/ginkgo"
@@ -639,11 +640,11 @@ var _ = Describe("v2-push Command", func() {
 			BeforeEach(func() {
 				cmd.BuildpackName = "some-buildpack"
 				cmd.Command = "echo foo bar baz"
-				cmd.DiskQuota = flag.Megabytes{Size: 1024}
+				cmd.DiskQuota = flag.Megabytes{types.NullUint64{Value: 1024, IsSet: true}}
 				cmd.HealthCheckTimeout = 14
 				cmd.HealthCheckType = flag.HealthCheckType{Type: "http"}
 				cmd.Instances = 12
-				cmd.Memory = flag.Megabytes{Size: 100}
+				cmd.Memory = flag.Megabytes{types.NullUint64{Value: 100, IsSet: true}}
 				cmd.StackName = "some-stack"
 			})
 
