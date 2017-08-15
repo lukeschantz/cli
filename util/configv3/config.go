@@ -6,9 +6,11 @@ import (
 	"io/ioutil"
 	"math"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/crypto/ssh/terminal"
@@ -191,19 +193,38 @@ func WriteConfig(c *Config) error {
 		return err
 	}
 
+	// Setup notifications of termination signals to channel sig, create a process to
+	// watch for these signals so we can turn back on echo if need be.
+	sig := make(chan os.Signal, 10)
+	signal.Notify(sig, syscall.SIGHUP, syscall.SIGINT, syscall.SIGKILL, syscall.SIGQUIT, syscall.SIGTERM)
+	defer signal.Stop(sig)
+
 	tempConfigFile, err := ioutil.TempFile(dir, "config")
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tempConfigFile.Name())
 
-	err = ioutil.WriteFile(tempConfigFile.Name(), rawConfig, 0600)
+	tempConfigFileName := tempConfigFile.Name()
+	go catchSignal(sig, tempConfigFileName)
+
+	err = ioutil.WriteFile(tempConfigFileName, rawConfig, 0600)
 	if err != nil {
 		return err
 	}
 	tempConfigFile.Close()
 
-	return os.Rename(tempConfigFile.Name(), ConfigFilePath())
+	return os.Rename(tempConfigFileName, ConfigFilePath())
+}
+
+// catchSignal tries to catch SIGKILL, SIGQUIT and SIGINT so that we can turn terminal
+// echo back on before the program ends.  Otherwise the user is left with echo off on
+// their terminal.
+func catchSignal(sig chan os.Signal, tempFileName string) {
+	select {
+	case <-sig:
+		os.Remove(tempFileName)
+		os.Exit(2)
+	}
 }
 
 // Config combines the settings taken from the .cf/config.json, os.ENV, and the
